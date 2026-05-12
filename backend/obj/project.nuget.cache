@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "dgSpecHash": "LkPBaVhVWYY=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\sasha\\OneDrive\\Рабочий стол\\WebLab3\\backend\\backend.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\sasha\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\8.0.0\\microsoft.extensions.dependencyinjection.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\sasha\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\8.0.0\\microsoft.extensions.logging.abstractions.8.0.0.nupkg.sha512",
+    "C:\\Users\\sasha\\.nuget\\packages\\microsoft.identitymodel.abstractions\\8.18.0\\microsoft.identitymodel.abstractions.8.18.0.nupkg.sha512",
+    "C:\\Users\\sasha\\.nuget\\packages\\microsoft.identitymodel.jsonwebtokens\\8.18.0\\microsoft.identitymodel.jsonwebtokens.8.18.0.nupkg.sha512",
+    "C:\\Users\\sasha\\.nuget\\packages\\microsoft.identitymodel.logging\\8.18.0\\microsoft.identitymodel.logging.8.18.0.nupkg.sha512",
+    "C:\\Users\\sasha\\.nuget\\packages\\microsoft.identitymodel.protocols\\8.18.0\\microsoft.identitymodel.protocols.8.18.0.nupkg.sha512",
+    "C:\\Users\\sasha\\.nuget\\packages\\microsoft.identitymodel.protocols.openidconnect\\8.18.0\\microsoft.identitymodel.protocols.openidconnect.8.18.0.nupkg.sha512",
+    "C:\\Users\\sasha\\.nuget\\packages\\microsoft.identitymodel.tokens\\8.18.0\\microsoft.identitymodel.tokens.8.18.0.nupkg.sha512",
+    "C:\\Users\\sasha\\.nuget\\packages\\system.identitymodel.tokens.jwt\\8.18.0\\system.identitymodel.tokens.jwt.8.18.0.nupkg.sha512"
+  ],
+  "logs": []
+}

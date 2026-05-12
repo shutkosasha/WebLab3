@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Лабораторна робота 3</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+        }
+
+        button {
+            margin-right: 10px;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+
+        pre {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f2f2f2;
+            border: 1px solid #ccc;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Лабораторна робота 3</h1>
+    <h2>Oleksandr Shutko KP-33</h2>
+
+
+    <button id="loginBtn">Login через Casdoor</button>
+    <button id="userInfoBtn">Get User Info</button>
+    <button id="clearBtn">Clear</button>
+
+    <h3>Result:</h3>
+    <pre id="result"></pre>
+
+    <script>
+        const backendUrl = "https://localhost:9000";
+
+        const loginBtn = document.getElementById("loginBtn");
+        const userInfoBtn = document.getElementById("userInfoBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const result = document.getElementById("result");
+
+        loginBtn.addEventListener("click", () => {
+            window.location.href = `${backendUrl}/login`;
+        });
+
+        userInfoBtn.addEventListener("click", async () => {
+            result.textContent = "Loading...";
+
+            try {
+                const response = await fetch(`${backendUrl}/user-info`, {
+                    method: "GET",
+                    credentials: "include"
+                });
+
+                const text = await response.text();
+
+                if (response.status === 401) {
+                    result.textContent = "Status: 401 Unauthorized\n\n" + text;
+                    return;
+                }
+
+                if (!response.ok) {
+                    result.textContent = "Error: " + response.status + "\n\n" + text;
+                    return;
+                }
+
+                const data = JSON.parse(text);
+
+                result.textContent = "Status: " + response.status;
+                result.textContent += "\n\nMessage: " + data.message;
+                result.textContent += "\n\nClaims:\n" + JSON.stringify(data.claims, null, 2);
+            } catch (error) {
+                result.textContent = "Request failed:\n" + error;
+            }
+        });
+
+        clearBtn.addEventListener("click", () => {
+            result.textContent = "";
+        });
+    </script>
+</body>
+</html>

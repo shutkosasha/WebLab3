@@ -1,0 +1,27 @@
+services:
+  casdoor:
+    image: casbin/casdoor-all-in-one:latest
+    container_name: lab3-casdoor
+    restart: unless-stopped
+    expose:
+      - "8000"
+    networks:
+      - lab3-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: lab3-nginx
+    restart: unless-stopped
+    depends_on:
+      - casdoor
+    ports:
+      - "8443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    networks:
+      - lab3-network
+
+networks:
+  lab3-network:
+    driver: bridge
