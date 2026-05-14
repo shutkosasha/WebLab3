@@ -34,3 +34,6 @@ C:\Users\sasha\OneDrive\Рабочий стол\WebLab3\backend\obj\Debug\net9.0
 C:\Users\sasha\OneDrive\Рабочий стол\WebLab3\backend\obj\Debug\net9.0\backend.pdb
 C:\Users\sasha\OneDrive\Рабочий стол\WebLab3\backend\obj\Debug\net9.0\backend.genruntimeconfig.cache
 C:\Users\sasha\OneDrive\Рабочий стол\WebLab3\backend\obj\Debug\net9.0\ref\backend.dll
+C:\Users\sasha\OneDrive\Рабочий стол\WebLab3\backend\bin\Debug\net9.0\protobuf-net.dll
+C:\Users\sasha\OneDrive\Рабочий стол\WebLab3\backend\bin\Debug\net9.0\protobuf-net.Core.dll
+C:\Users\sasha\OneDrive\Рабочий стол\WebLab3\backend\obj\Debug\net9.0\backend.sourcelink.json

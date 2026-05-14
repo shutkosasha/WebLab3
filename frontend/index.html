@@ -2,86 +2,292 @@
 <html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Лабораторна робота 3</title>
+    <title>Лабораторна робота 4</title>
+
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 40px;
+            margin: 35px;
+            background: #f7f7f7;
+        }
+
+        .block {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 18px;
+            margin-bottom: 20px;
+            max-width: 760px;
         }
 
         button {
-            margin-right: 10px;
+            margin: 5px 8px 5px 0;
             padding: 8px 12px;
             cursor: pointer;
         }
 
+        textarea {
+            width: 350px;
+            height: 55px;
+            display: block;
+            margin-top: 8px;
+        }
+
         pre {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f2f2f2;
-            border: 1px solid #ccc;
+            background: #eeeeee;
+            padding: 12px;
+            min-height: 40px;
             white-space: pre-wrap;
         }
+
+        table {
+            border-collapse: collapse;
+            margin-top: 12px;
+            width: 520px;
+            background: white;
+        }
+
+        th, td {
+            border: 1px solid #777;
+            padding: 8px;
+        }
+
+        th {
+            background: #e6e6e6;
+        }
+
+        #websocketStatus {
+            font-weight: bold;
+            margin-top: 10px;
+        }
     </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/protobufjs@7/dist/protobuf.min.js"></script>
 </head>
 <body>
-    <h1>Лабораторна робота 3</h1>
+    <h1>Лабораторна робота 4</h1>
     <h2>Oleksandr Shutko KP-33</h2>
 
+    <div class="block">
+        <h3>OIDC авторизація</h3>
 
-    <button id="loginBtn">Login через Casdoor</button>
-    <button id="userInfoBtn">Get User Info</button>
-    <button id="clearBtn">Clear</button>
+        <button id="loginBtn">Login через Casdoor</button>
+        <button id="userInfoBtn">Get User Info</button>
+        <button id="clearBtn">Clear</button>
 
-    <h3>Result:</h3>
-    <pre id="result"></pre>
+        <h4>Result:</h4>
+        <pre id="result"></pre>
+    </div>
 
-    <script>
-        const backendUrl = "https://localhost:9000";
+    <div class="block">
+        <h3>WebSocket Binance</h3>
 
-        const loginBtn = document.getElementById("loginBtn");
-        const userInfoBtn = document.getElementById("userInfoBtn");
-        const clearBtn = document.getElementById("clearBtn");
-        const result = document.getElementById("result");
+        <p>Введіть символи для підписки:</p>
+        <textarea id="symbolsInput">btcusdt, ethusdt</textarea>
 
-        loginBtn.addEventListener("click", () => {
-            window.location.href = `${backendUrl}/login`;
-        });
+        <button id="connectWebSocketBtn">Підключитись до WebSocket</button>
+        <button id="updateSubscriptionBtn">Оновити підписку</button>
+        <button id="disconnectWebSocketBtn">Відключитись</button>
 
-        userInfoBtn.addEventListener("click", async () => {
-            result.textContent = "Loading...";
+        <p id="websocketStatus">WebSocket не підключений</p>
 
-            try {
-                const response = await fetch(`${backendUrl}/user-info`, {
-                    method: "GET",
-                    credentials: "include"
-                });
+        <table>
+            <thead>
+                <tr>
+                    <th>Символ</th>
+                    <th>Ціна</th>
+                    <th>Час</th>
+                </tr>
+            </thead>
+            <tbody id="priceTableBody"></tbody>
+        </table>
+    </div>
 
-                const text = await response.text();
+<script>
+    const backendUrl = "https://localhost:9000";
 
-                if (response.status === 401) {
-                    result.textContent = "Status: 401 Unauthorized\n\n" + text;
-                    return;
+    const loginBtn = document.getElementById("loginBtn");
+    const userInfoBtn = document.getElementById("userInfoBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const result = document.getElementById("result");
+
+    const connectWebSocketBtn = document.getElementById("connectWebSocketBtn");
+    const updateSubscriptionBtn = document.getElementById("updateSubscriptionBtn");
+    const disconnectWebSocketBtn = document.getElementById("disconnectWebSocketBtn");
+    const symbolsInput = document.getElementById("symbolsInput");
+    const websocketStatus = document.getElementById("websocketStatus");
+    const priceTableBody = document.getElementById("priceTableBody");
+
+    let socket = null;
+    let prices = {};
+
+    const protoRoot = protobuf.Root.fromJSON({
+        nested: {
+            SubscriptionRequest: {
+                fields: {
+                    symbols: {
+                        rule: "repeated",
+                        type: "string",
+                        id: 1
+                    }
                 }
-
-                if (!response.ok) {
-                    result.textContent = "Error: " + response.status + "\n\n" + text;
-                    return;
+            },
+            MarketUpdate: {
+                fields: {
+                    symbol: { type: "string", id: 1 },
+                    price: { type: "string", id: 2 },
+                    eventTime: { type: "int64", id: 3 }
                 }
-
-                const data = JSON.parse(text);
-
-                result.textContent = "Status: " + response.status;
-                result.textContent += "\n\nMessage: " + data.message;
-                result.textContent += "\n\nClaims:\n" + JSON.stringify(data.claims, null, 2);
-            } catch (error) {
-                result.textContent = "Request failed:\n" + error;
             }
+        }
+    });
+
+    const SubscriptionRequest = protoRoot.lookupType("SubscriptionRequest");
+    const MarketUpdate = protoRoot.lookupType("MarketUpdate");
+
+    loginBtn.addEventListener("click", () => {
+        window.location.href = `${backendUrl}/login`;
+    });
+
+    userInfoBtn.addEventListener("click", async () => {
+        result.textContent = "Loading...";
+
+        try {
+            const response = await fetch(`${backendUrl}/user-info`, {
+                method: "GET",
+                credentials: "include"
+            });
+
+            const text = await response.text();
+
+            if (response.status === 401) {
+                result.textContent = "Status: 401 Unauthorized\n\n" + text;
+                return;
+            }
+
+            if (!response.ok) {
+                result.textContent = "Error: " + response.status + "\n\n" + text;
+                return;
+            }
+
+            const data = JSON.parse(text);
+
+            result.textContent = "Status: " + response.status;
+            result.textContent += "\n\nMessage: " + data.message;
+            result.textContent += "\n\nClaims:\n" + JSON.stringify(data.claims, null, 2);
+        } catch (error) {
+            result.textContent = "Request failed:\n" + error;
+        }
+    });
+
+    clearBtn.addEventListener("click", () => {
+        result.textContent = "";
+    });
+
+    connectWebSocketBtn.addEventListener("click", () => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            websocketStatus.textContent = "WebSocket вже підключений";
+            return;
+        }
+
+        socket = new WebSocket("wss://localhost:9000/ws");
+        socket.binaryType = "arraybuffer";
+
+        socket.onopen = () => {
+            websocketStatus.textContent = "WebSocket підключений";
+            sendSubscription();
+        };
+
+        socket.onmessage = (event) => {
+            try {
+                const bytes = new Uint8Array(event.data);
+                const update = MarketUpdate.decode(bytes);
+
+                const eventTime =
+                    update.eventTime && update.eventTime.toNumber
+                        ? update.eventTime.toNumber()
+                        : Number(update.eventTime);
+
+                prices[update.symbol] = {
+                    price: update.price,
+                    time: new Date(eventTime).toLocaleTimeString()
+                };
+
+                renderPrices();
+            } catch (error) {
+                console.error(error);
+                websocketStatus.textContent = "Помилка декодування Protobuf";
+            }
+        };
+
+        socket.onerror = () => {
+            websocketStatus.textContent = "WebSocket помилка";
+        };
+
+        socket.onclose = () => {
+            websocketStatus.textContent = "WebSocket закритий";
+        };
+    });
+
+    updateSubscriptionBtn.addEventListener("click", () => {
+        sendSubscription();
+    });
+
+    disconnectWebSocketBtn.addEventListener("click", () => {
+        if (socket) {
+            socket.close();
+            socket = null;
+        }
+
+        websocketStatus.textContent = "WebSocket закритий";
+    });
+
+    function sendSubscription() {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            websocketStatus.textContent = "WebSocket не підключений";
+            return;
+        }
+
+        const symbols = symbolsInput.value
+            .split(",")
+            .map(symbol => symbol.trim().toLowerCase())
+            .filter(symbol => symbol.length > 0);
+
+        const message = SubscriptionRequest.create({
+            symbols: symbols
         });
 
-        clearBtn.addEventListener("click", () => {
-            result.textContent = "";
-        });
-    </script>
+        const bytes = SubscriptionRequest.encode(message).finish();
+
+        socket.send(bytes);
+
+        prices = {};
+        renderPrices();
+
+        websocketStatus.textContent = "Підписка активна: " + symbols.join(", ");
+    }
+
+    function renderPrices() {
+        priceTableBody.innerHTML = "";
+
+        for (const symbol in prices) {
+            const row = document.createElement("tr");
+
+            const symbolCell = document.createElement("td");
+            symbolCell.textContent = symbol;
+
+            const priceCell = document.createElement("td");
+            priceCell.textContent = prices[symbol].price;
+
+            const timeCell = document.createElement("td");
+            timeCell.textContent = prices[symbol].time;
+
+            row.appendChild(symbolCell);
+            row.appendChild(priceCell);
+            row.appendChild(timeCell);
+
+            priceTableBody.appendChild(row);
+        }
+    }
+</script>
 </body>
 </html>

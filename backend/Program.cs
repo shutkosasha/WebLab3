@@ -4,10 +4,16 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
+using System.Net.WebSockets;
+using Backend.Models;
+using Backend.Services;
+using ProtoBuf;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<WebSocketSessionManager>();
+builder.Services.AddHostedService<BinanceService>();
 
 builder.Services.AddCors(options =>
 {
@@ -60,7 +66,50 @@ var app = builder.Build();
 
 app.UseCors("Frontend");
 
+app.UseWebSockets();
+
 app.MapGet("/", () => "Lab3 backend is running");
+
+app.MapGet("/ws", async (
+    HttpContext context,
+    IConfiguration configuration,
+    IHttpClientFactory httpClientFactory,
+    WebSocketSessionManager sessionManager) =>
+{
+    if (!context.WebSockets.IsWebSocketRequest)
+    {
+        return Results.BadRequest(new { error = "WebSocket request expected" });
+    }
+
+    var token = context.Request.Cookies["auth_token"];
+
+    if (string.IsNullOrEmpty(token))
+    {
+        return Results.Unauthorized();
+    }
+
+    var validationResult = await ValidateJwtAsync(token, configuration, httpClientFactory);
+
+    if (!validationResult.IsValid)
+    {
+        return Results.Unauthorized();
+    }
+
+    using var socket = await context.WebSockets.AcceptWebSocketAsync();
+
+    var sessionId = sessionManager.Add(socket);
+
+    try
+    {
+        await ReceiveWebSocketLoopAsync(socket, sessionId, sessionManager);
+    }
+    finally
+    {
+        sessionManager.Remove(sessionId);
+    }
+
+    return Results.Empty;
+});
 
 app.MapGet("/login", async (
     HttpContext context,
@@ -298,6 +347,74 @@ static async Task<JwtValidationResult> ValidateJwtAsync(
 
         return JwtValidationResult.Fail(ex.Message);
     }
+}
+
+static async Task ReceiveWebSocketLoopAsync(
+    WebSocket socket,
+    Guid sessionId,
+    WebSocketSessionManager sessionManager)
+{
+    while (socket.State == WebSocketState.Open)
+    {
+        var messageBytes = await ReceiveBinaryMessageAsync(socket);
+
+        if (messageBytes is null)
+        {
+            break;
+        }
+
+        try
+        {
+            using var memoryStream = new MemoryStream(messageBytes);
+
+            var subscription = Serializer.Deserialize<SubscriptionRequest>(memoryStream);
+
+            var symbols = subscription.Symbols
+                .Select(symbol => symbol.Trim().ToLower())
+                .Where(symbol => !string.IsNullOrWhiteSpace(symbol))
+                .ToList();
+
+            sessionManager.Subscribe(sessionId, symbols);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("WebSocket subscription parse error:");
+            Console.WriteLine(ex.Message);
+        }
+    }
+}
+
+static async Task<byte[]?> ReceiveBinaryMessageAsync(WebSocket socket)
+{
+    var buffer = new byte[4096];
+
+    using var memoryStream = new MemoryStream();
+
+    WebSocketReceiveResult result;
+
+    do
+    {
+        result = await socket.ReceiveAsync(
+            new ArraySegment<byte>(buffer),
+            CancellationToken.None
+        );
+
+        if (result.MessageType == WebSocketMessageType.Close)
+        {
+            await socket.CloseAsync(
+                WebSocketCloseStatus.NormalClosure,
+                "Closed",
+                CancellationToken.None
+            );
+
+            return null;
+        }
+
+        memoryStream.Write(buffer, 0, result.Count);
+    }
+    while (!result.EndOfMessage);
+
+    return memoryStream.ToArray();
 }
 
 class OidcDiscovery
